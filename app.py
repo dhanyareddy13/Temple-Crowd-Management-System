@@ -13,6 +13,24 @@ def get_db_connection():
     return conn
 
 
+# Create table if it doesn't exist
+def init_db():
+    conn = get_db_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS temples (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            location TEXT NOT NULL,
+            crowd INTEGER NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
 @app.route("/")
 def home():
     return render_template("home.html")
