@@ -2,50 +2,33 @@
 <html>
 <head>
 
-<title>Temple Crowd Dashboard</title>
+<title>Temple Crowd Management Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
 body{
-font-family: Arial;
-background-color:#f5f5f5;
+font-family:Arial;
+background:#f4f6f8;
+margin:0;
+padding:20px;
+}
+
+h1{
 text-align:center;
 }
 
-table{
-margin:auto;
-border-collapse:collapse;
-width:80%;
-background:white;
-}
-
-th,td{
-padding:10px;
-border:1px solid #ddd;
-}
-
-th{
-background:#333;
+.logout{
+position:absolute;
+top:20px;
+right:20px;
+padding:8px 15px;
+background:red;
 color:white;
-}
-
-.low{
-color:green;
-font-weight:bold;
-}
-
-.medium{
-color:orange;
-font-weight:bold;
-}
-
-.high{
-color:red;
-font-weight:bold;
-}
-
-form{
-margin-bottom:20px;
+border:none;
+border-radius:5px;
+cursor:pointer;
 }
 
 input{
@@ -54,11 +37,64 @@ margin:5px;
 }
 
 button{
-padding:8px 12px;
-background:#333;
+padding:8px 15px;
+background:#3498db;
 color:white;
 border:none;
+border-radius:5px;
 cursor:pointer;
+}
+
+form{
+text-align:center;
+margin-bottom:20px;
+}
+
+.cards{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:20px;
+margin-bottom:30px;
+}
+
+.card{
+width:220px;
+padding:20px;
+border-radius:10px;
+color:white;
+text-align:center;
+font-weight:bold;
+}
+
+.low{
+background:#27ae60;
+}
+
+.medium{
+background:#f39c12;
+}
+
+.high{
+background:#e74c3c;
+}
+
+table{
+width:90%;
+margin:auto;
+border-collapse:collapse;
+background:white;
+}
+
+th,td{
+padding:10px;
+border:1px solid #ccc;
+text-align:center;
+}
+
+th{
+background:#2c3e50;
+color:white;
 }
 
 </style>
@@ -67,13 +103,29 @@ cursor:pointer;
 
 <body>
 
+<a href="/logout">
+<button class="logout">Logout</button>
+</a>
+
 <h1>Temple Crowd Management Dashboard</h1>
 
-{% if role == "admin" %}
 
-<h2>Admin Mode</h2>
+<!-- SEARCH BY LOCATION -->
 
-<form action="/add" method="post">
+<form id="searchForm">
+
+<input type="text" id="location" placeholder="Search temples by location">
+
+<button type="submit">Search</button>
+
+</form>
+
+<ul id="results"></ul>
+
+
+<!-- ADD TEMPLE -->
+
+<form action="/add" method="POST">
 
 <input type="text" name="name" placeholder="Temple Name" required>
 
@@ -85,25 +137,57 @@ cursor:pointer;
 
 </form>
 
-{% else %}
 
-<h2>Guest Mode (View Only)</h2>
+<!-- LIVE CROWD STATUS CARDS -->
+
+<div class="cards">
+
+{% for temple in temples %}
+
+<div class="card
+
+{% if temple.crowd < 10000 %}
+low
+{% elif temple.crowd < 20000 %}
+medium
+{% else %}
+high
+{% endif %}
+">
+
+<h3>{{ temple.name }}</h3>
+
+<p>{{ temple.location }}</p>
+
+<p>Crowd: {{ temple.crowd }}</p>
+
+{% if temple.crowd < 10000 %}
+<span>Low Crowd</span>
+
+{% elif temple.crowd < 20000 %}
+<span>Medium Crowd</span>
+
+{% else %}
+<span>High Crowd</span>
 
 {% endif %}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+
+<!-- TEMPLE TABLE -->
 
 <table>
 
 <tr>
-
 <th>Temple</th>
 <th>Location</th>
 <th>Crowd</th>
-<th>Status</th>
-
-{% if role == "admin" %}
 <th>Actions</th>
-{% endif %}
-
 </tr>
 
 {% for temple in temples %}
@@ -118,38 +202,81 @@ cursor:pointer;
 
 <td>
 
-{% if temple.crowd < 10000 %}
+<a href="/edit/{{ temple.id }}">
+<button>Edit</button>
+</a>
 
-<span class="low">Low</span>
-
-{% elif temple.crowd < 20000 %}
-
-<span class="medium">Medium</span>
-
-{% else %}
-
-<span class="high">High</span>
-
-{% endif %}
+<a href="/delete/{{ temple.id }}">
+<button style="background:red;">Delete</button>
+</a>
 
 </td>
-
-{% if role == "admin" %}
-
-<td>
-
-<a href="/edit/{{ temple.id }}">Edit</a> |
-<a href="/delete/{{ temple.id }}">Delete</a>
-
-</td>
-
-{% endif %}
 
 </tr>
 
 {% endfor %}
 
 </table>
+
+
+<!-- CROWD ANALYTICS CHART -->
+
+<h2 style="text-align:center;margin-top:40px;">Crowd Analytics</h2>
+
+<canvas id="crowdChart" width="400" height="150"></canvas>
+
+
+<script>
+
+const ctx=document.getElementById('crowdChart');
+
+const chart=new Chart(ctx,{
+
+type:'bar',
+
+data:{
+labels:[{% for temple in temples %}"{{ temple.name }}",{% endfor %}],
+datasets:[{
+label:'Crowd Count',
+data:[{% for temple in temples %}{{ temple.crowd }},{% endfor %}],
+borderWidth:1
+}]
+}
+
+});
+
+
+document.getElementById("searchForm").addEventListener("submit",function(e){
+
+e.preventDefault()
+
+let location=document.getElementById("location").value
+
+fetch("/recommend?location="+location)
+
+.then(res=>res.json())
+
+.then(data=>{
+
+let results=document.getElementById("results")
+
+results.innerHTML=""
+
+data.temples.forEach(t=>{
+
+let li=document.createElement("li")
+
+li.textContent=t.name+" - "+t.location
+
+results.appendChild(li)
+
+})
+
+})
+
+})
+
+</script>
 
 </body>
 </html>
