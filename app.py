@@ -13,7 +13,6 @@ def get_db_connection():
     return conn
 
 
-# Create table if it doesn't exist
 def init_db():
     conn = get_db_connection()
     conn.execute("""
@@ -43,19 +42,22 @@ def login():
         password = request.form["password"]
 
         if username == "admin" and password == "admin":
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("dashboard", role="admin"))
         else:
-            return "Invalid login"
+            return redirect(url_for("dashboard", role="guest"))
 
     return render_template("login.html")
 
 
 @app.route("/dashboard")
 def dashboard():
+    role = request.args.get("role", "guest")
+
     conn = get_db_connection()
     temples = conn.execute("SELECT * FROM temples").fetchall()
     conn.close()
-    return render_template("dashboard.html", temples=temples)
+
+    return render_template("dashboard.html", temples=temples, role=role)
 
 
 @app.route("/add", methods=["POST"])
@@ -72,7 +74,7 @@ def add():
     conn.commit()
     conn.close()
 
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("dashboard", role="admin"))
 
 
 @app.route("/edit/<int:id>", methods=["GET", "POST"])
@@ -91,7 +93,7 @@ def edit(id):
         conn.commit()
         conn.close()
 
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("dashboard", role="admin"))
 
     temple = conn.execute("SELECT * FROM temples WHERE id=?", (id,)).fetchone()
     conn.close()
@@ -106,9 +108,9 @@ def delete(id):
     conn.commit()
     conn.close()
 
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("dashboard", role="admin"))
 
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
